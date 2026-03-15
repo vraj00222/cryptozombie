@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CryptoZombies DApp</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.2.7-rc.0/web3.min.js"></script>
+  <script src="cryptozombies_abi.js"></script>
+  <script src="cryptokitties_abi.js"></script>
+  <script src="contract-config.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1><span>Crypto</span>Zombies DApp</h1>
+    <div class="account-info" id="accountInfo">Not connected</div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="txStatus">Ready</div>
+
+  <!-- Navigation Tabs -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="my-zombies">My Zombies</button>
+    <button class="nav-tab" data-tab="all-zombies">All Zombies</button>
+    <button class="nav-tab" data-tab="kitties">Kitties</button>
+    <button class="nav-tab" data-tab="battle">Battle Arena</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- MY ZOMBIES TAB -->
+    <div class="tab-content active" id="tab-my-zombies">
+      <div class="section-header">
+        <h2>My Zombie Army</h2>
+        <div class="input-group" style="margin-bottom:0">
+          <input type="text" class="input-field" id="zombieNameInput" placeholder="Enter zombie name...">
+          <button class="btn btn-primary" id="createZombieBtn">Create Zombie</button>
+        </div>
+      </div>
+      <div class="zombies-grid" id="myZombies">
+        <div class="empty-state">
+          <h3>No zombies yet</h3>
+          <p>Create your first zombie above!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALL ZOMBIES TAB -->
+    <div class="tab-content" id="tab-all-zombies">
+      <div class="section-header">
+        <h2>All Zombies on Network</h2>
+        <button class="btn btn-secondary" id="refreshAllBtn">Refresh</button>
+      </div>
+      <div class="zombies-grid" id="allZombies">
+        <div class="empty-state">
+          <h3>No zombies exist yet</h3>
+          <p>Be the first to create one!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- KITTIES TAB -->
+    <div class="tab-content" id="tab-kitties">
+      <div class="section-header">
+        <h2>CryptoKitties</h2>
+        <button class="btn btn-warning" id="createKittyBtn">Create Random Kitty</button>
+      </div>
+      <p style="color:#888; margin-bottom:20px; font-size:14px;">
+        Create kitties here, then feed your zombies on them from the "My Zombies" tab.
+      </p>
+      <div class="zombies-grid" id="kittyList">
+        <div class="empty-state">
+          <h3>No kitties yet</h3>
+          <p>Create a kitty to feed your zombies!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATTLE ARENA TAB -->
+    <div class="tab-content" id="tab-battle">
+      <div class="section-header">
+        <h2>Battle Arena</h2>
+      </div>
+      <p style="color:#888; margin-bottom:20px; font-size:14px;">
+        Select your zombie and an opponent to battle. 70% win chance. Winners level up and spawn a new zombie!
+      </p>
+      <div class="input-group">
+        <label style="color:#888; min-width:120px;">Your Zombie ID:</label>
+        <input type="number" class="input-field" id="attackerIdInput" placeholder="Your zombie ID" min="0">
+        <label style="color:#888; min-width:120px;">Target Zombie ID:</label>
+        <input type="number" class="input-field" id="targetIdInput" placeholder="Enemy zombie ID" min="0">
+        <button class="btn btn-danger" id="attackBtn">Attack!</button>
+      </div>
+      <div id="battleResult" style="padding:20px; text-align:center; color:#888;"></div>
+    </div>
+
+  </div>
+
+  <!-- TRANSFER MODAL -->
+  <div class="modal-overlay" id="transferModal">
+    <div class="modal">
+      <h3>Transfer Zombie</h3>
+      <div class="form-group">
+        <label>Zombie ID</label>
+        <input type="number" class="input-field" id="transferZombieId" readonly>
+      </div>
+      <div class="form-group">
+        <label>Recipient Address</label>
+        <input type="text" class="input-field" id="transferToAddress" placeholder="0x...">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('transferModal')">Cancel</button>
+        <button class="btn btn-primary" id="confirmTransferBtn">Transfer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RENAME MODAL -->
+  <div class="modal-overlay" id="renameModal">
+    <div class="modal">
+      <h3>Rename Zombie</h3>
+      <p style="color:#888; font-size:13px; margin-bottom:16px;">Requires Level 2+</p>
+      <div class="form-group">
+        <label>Zombie ID</label>
+        <input type="number" class="input-field" id="renameZombieId" readonly>
+      </div>
+      <div class="form-group">
+        <label>New Name</label>
+        <input type="text" class="input-field" id="newZombieName" placeholder="Enter new name...">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('renameModal')">Cancel</button>
+        <button class="btn btn-primary" id="confirmRenameBtn">Rename</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEED ON KITTY MODAL -->
+  <div class="modal-overlay" id="feedModal">
+    <div class="modal">
+      <h3>Feed on Kitty</h3>
+      <p style="color:#888; font-size:13px; margin-bottom:16px;">Your zombie eats a kitty and spawns a new zombie with kitty DNA!</p>
+      <div class="form-group">
+        <label>Zombie ID</label>
+        <input type="number" class="input-field" id="feedZombieId" readonly>
+      </div>
+      <div class="form-group">
+        <label>Kitty ID to Feed On</label>
+        <input type="number" class="input-field" id="feedKittyId" placeholder="Kitty ID" min="0">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('feedModal')">Cancel</button>
+        <button class="btn btn-warning" id="confirmFeedBtn">Feed!</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+    var cryptoZombies;
+    var kittyContract;
+    var userAccount;
+
+    // ========== ZOMBIE IMAGE GENERATOR (Improvement #5) ==========
+    function generateZombieSVG(dna) {
+        var dnaStr = String(dna).padStart(16, '0');
+        // Extract traits from DNA digits
+        var headColor = '#' + intToHex(parseInt(dnaStr.substring(0, 2)) * 2.55) +
+                               intToHex(parseInt(dnaStr.substring(2, 4)) * 2.55) +
+                               intToHex(parseInt(dnaStr.substring(4, 6)) * 1.5);
+        var bodyColor = '#' + intToHex(parseInt(dnaStr.substring(6, 8)) * 2.55) +
+                               intToHex(parseInt(dnaStr.substring(8, 10)) * 1.2) +
+                               intToHex(parseInt(dnaStr.substring(2, 4)) * 2);
+        var eyeType = parseInt(dnaStr.substring(10, 12)) % 5;
+        var mouthType = parseInt(dnaStr.substring(12, 14)) % 4;
+        var accessory = parseInt(dnaStr.substring(14, 16)) % 6;
+
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">';
+        // Background glow
+        svg += '<rect width="200" height="200" fill="#0f0f1a" rx="16"/>';
+        // Body
+        svg += '<ellipse cx="100" cy="145" rx="45" ry="35" fill="' + bodyColor + '" opacity="0.9"/>';
+        // Head
+        svg += '<ellipse cx="100" cy="85" rx="50" ry="45" fill="' + headColor + '"/>';
+        // Head highlight
+        svg += '<ellipse cx="90" cy="72" rx="25" ry="15" fill="rgba(255,255,255,0.1)"/>';
+
+        // Eyes based on eyeType
+        if (eyeType === 0) { // Big round eyes
+            svg += '<circle cx="80" cy="80" r="14" fill="white"/><circle cx="120" cy="80" r="14" fill="white"/>';
+            svg += '<circle cx="83" cy="80" r="7" fill="#111"/><circle cx="117" cy="80" r="7" fill="#111"/>';
+            svg += '<circle cx="85" cy="77" r="3" fill="white"/><circle cx="119" cy="77" r="3" fill="white"/>';
+        } else if (eyeType === 1) { // Angry eyes
+            svg += '<ellipse cx="80" cy="80" rx="14" ry="10" fill="white"/><ellipse cx="120" cy="80" rx="14" ry="10" fill="white"/>';
+            svg += '<circle cx="80" cy="80" r="6" fill="red"/><circle cx="120" cy="80" r="6" fill="red"/>';
+            svg += '<circle cx="80" cy="80" r="3" fill="#111"/><circle cx="120" cy="80" r="3" fill="#111"/>';
+            svg += '<line x1="66" y1="68" x2="90" y2="74" stroke="' + headColor + '" stroke-width="5"/>';
+            svg += '<line x1="134" y1="68" x2="110" y2="74" stroke="' + headColor + '" stroke-width="5"/>';
+        } else if (eyeType === 2) { // Cyclops
+            svg += '<circle cx="100" cy="80" r="18" fill="white"/>';
+            svg += '<circle cx="100" cy="80" r="10" fill="#00ff88"/>';
+            svg += '<circle cx="100" cy="80" r="5" fill="#111"/>';
+            svg += '<circle cx="103" cy="76" r="3" fill="white"/>';
+        } else if (eyeType === 3) { // Sleepy
+            svg += '<ellipse cx="80" cy="82" rx="14" ry="6" fill="white"/><ellipse cx="120" cy="82" rx="14" ry="6" fill="white"/>';
+            svg += '<circle cx="80" cy="82" r="4" fill="#111"/><circle cx="120" cy="82" r="4" fill="#111"/>';
+        } else { // X eyes (undead)
+            svg += '<line x1="72" y1="72" x2="88" y2="88" stroke="white" stroke-width="3"/>';
+            svg += '<line x1="88" y1="72" x2="72" y2="88" stroke="white" stroke-width="3"/>';
+            svg += '<line x1="112" y1="72" x2="128" y2="88" stroke="white" stroke-width="3"/>';
+            svg += '<line x1="128" y1="72" x2="112" y2="88" stroke="white" stroke-width="3"/>';
+        }
+
+        // Mouth based on mouthType
+        if (mouthType === 0) { // Smile with teeth
+            svg += '<path d="M80 105 Q100 125 120 105" fill="none" stroke="#111" stroke-width="2"/>';
+            svg += '<rect x="92" y="105" width="5" height="6" fill="white" rx="1"/>';
+            svg += '<rect x="103" y="105" width="5" height="6" fill="white" rx="1"/>';
+        } else if (mouthType === 1) { // Open mouth
+            svg += '<ellipse cx="100" cy="108" rx="12" ry="8" fill="#330000"/>';
+            svg += '<ellipse cx="100" cy="104" rx="8" ry="3" fill="white"/>';
+        } else if (mouthType === 2) { // Zigzag
+            svg += '<polyline points="78,105 88,110 98,100 108,110 118,100 122,105" fill="none" stroke="#111" stroke-width="2"/>';
+        } else { // Flat line
+            svg += '<line x1="85" y1="108" x2="115" y2="108" stroke="#111" stroke-width="2"/>';
+        }
+
+        // Arms
+        svg += '<line x1="55" y1="135" x2="40" y2="120" stroke="' + bodyColor + '" stroke-width="8" stroke-linecap="round"/>';
+        svg += '<line x1="145" y1="135" x2="160" y2="120" stroke="' + bodyColor + '" stroke-width="8" stroke-linecap="round"/>';
+
+        // Accessories based on accessory value
+        if (accessory === 0) { // Crown
+            svg += '<polygon points="75,45 85,30 95,45 100,25 105,45 115,30 125,45" fill="gold" stroke="#aa8800" stroke-width="1"/>';
+        } else if (accessory === 1) { // Horns
+            svg += '<polygon points="65,60 60,25 80,55" fill="#cc3333"/>';
+            svg += '<polygon points="135,60 140,25 120,55" fill="#cc3333"/>';
+        } else if (accessory === 2) { // Halo
+            svg += '<ellipse cx="100" cy="38" rx="30" ry="8" fill="none" stroke="gold" stroke-width="3" opacity="0.8"/>';
+        } else if (accessory === 3) { // Scar
+            svg += '<line x1="70" y1="70" x2="90" y2="95" stroke="#880000" stroke-width="3"/>';
+            svg += '<line x1="82" y1="75" x2="78" y2="90" stroke="#880000" stroke-width="2"/>';
+        } else if (accessory === 4) { // Bolts
+            svg += '<rect x="48" y="78" width="8" height="14" fill="#888" rx="2"/>';
+            svg += '<rect x="144" y="78" width="8" height="14" fill="#888" rx="2"/>';
+        }
+        // accessory === 5: no accessory
+
+        svg += '</svg>';
+        return svg;
+    }
+
+    function intToHex(val) {
+        var hex = Math.min(255, Math.max(0, Math.floor(val))).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    }
+
+    // ========== TAB NAVIGATION ==========
+    document.querySelectorAll('.nav-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+            // Auto-refresh when switching tabs
+            if (tab.dataset.tab === 'my-zombies') loadMyZombies();
+            if (tab.dataset.tab === 'all-zombies') loadAllZombies();
+            if (tab.dataset.tab === 'kitties') loadKitties();
+        });
+    });
+
+    // ========== MODAL HELPERS ==========
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function setStatus(msg, type) {
+        var el = document.getElementById('txStatus');
+        el.textContent = msg;
+        el.className = type || '';
+    }
+
+    // ========== APP INITIALIZATION (Improvement #6 - Dynamic Config) ==========
+    function startApp() {
+        var zombieAddress = CONTRACT_CONFIG.zombieOwnershipAddress;
+        var kittyAddress = CONTRACT_CONFIG.cryptoKittiesAddress;
+
+        cryptoZombies = new web3.eth.Contract(cryptoZombiesABI, zombieAddress);
+        kittyContract = new web3.eth.Contract(cryptoKittiesABI, kittyAddress);
+
+        document.getElementById('accountInfo').textContent =
+            'Connected: ' + userAccount.substring(0, 6) + '...' + userAccount.substring(38);
+
+        // Listen for new zombie events
+        cryptoZombies.events.NewZombie()
+            .on("data", function(event) {
+                setStatus("New zombie created: " + event.returnValues.name + " (ID: " + event.returnValues.zombieId + ")", "success");
+                loadMyZombies();
+            });
+
+        cryptoZombies.events.Transfer({ filter: { _to: userAccount } })
+            .on("data", function(event) {
+                setStatus("You received a zombie! (ID: " + event.returnValues._tokenId + ")", "success");
+                loadMyZombies();
+            });
+
+        loadMyZombies();
+    }
+
+    // ========== ZOMBIE DISPLAY ==========
+    function loadMyZombies() {
+        cryptoZombies.methods.getZombiesByOwner(userAccount).call()
+            .then(function(ids) { displayZombies(ids, 'myZombies', true); });
+    }
+
+    function loadAllZombies() {
+        cryptoZombies.methods.getAllZombies().call()
+            .then(function(ids) { displayZombies(ids, 'allZombies', false); });
+    }
+
+    function displayZombies(ids, containerId, isOwned) {
+        var container = document.getElementById(containerId);
+        container.innerHTML = '';
+
+        if (ids.length === 0) {
+            container.innerHTML = '<div class="empty-state"><h3>No zombies found</h3></div>';
+            return;
+        }
+
+        var promises = ids.map(function(id) {
+            return Promise.all([
+                cryptoZombies.methods.zombies(id).call(),
+                cryptoZombies.methods.zombieToOwner(id).call(),
+                Promise.resolve(id)
+            ]);
+        });
+
+        Promise.all(promises).then(function(results) {
+            results.forEach(function(data) {
+                var zombie = data[0];
+                var owner = data[1];
+                var id = data[2];
+                var isMyZombie = owner.toLowerCase() === userAccount.toLowerCase();
+
+                var card = document.createElement('div');
+                card.className = 'zombie-card';
+
+                var actionsHtml = '';
+                if (isMyZombie && isOwned) {
+                    actionsHtml = '<div class="zombie-actions">' +
+                        '<button class="btn btn-small btn-warning" onclick="openLevelUp(' + id + ')">Level Up</button>' +
+                        '<button class="btn btn-small btn-secondary" onclick="openRename(' + id + ')">Rename</button>' +
+                        '<button class="btn btn-small btn-secondary" onclick="openTransfer(' + id + ')">Transfer</button>' +
+                        '<button class="btn btn-small btn-secondary" onclick="openFeed(' + id + ')">Feed Kitty</button>' +
+                        '</div>';
+                }
+
+                var ownerLabel = '';
+                if (!isOwned) {
+                    var short = owner.substring(0, 6) + '...' + owner.substring(38);
+                    var ownerTag = isMyZombie ? ' (You)' : '';
+                    ownerLabel = '<div class="zombie-owner">Owner: ' + short + ownerTag + '</div>';
+                }
+
+                card.innerHTML =
+                    '<div class="zombie-image">' + generateZombieSVG(zombie.dna) + '</div>' +
+                    '<div class="zombie-info">' +
+                        '<div class="zombie-name">#' + id + ' ' + zombie.name + '</div>' +
+                        ownerLabel +
+                        '<div class="zombie-stats">' +
+                            '<div class="stat"><span class="stat-label">DNA</span><span class="stat-value">' + zombie.dna + '</span></div>' +
+                            '<div class="stat"><span class="stat-label">Level</span><span class="stat-value"><span class="badge badge-level">' + zombie.level + '</span></span></div>' +
+                            '<div class="stat"><span class="stat-label">Wins</span><span class="stat-value"><span class="badge badge-win">' + zombie.winCount + '</span></span></div>' +
+                            '<div class="stat"><span class="stat-label">Losses</span><span class="stat-value"><span class="badge badge-loss">' + zombie.lossCount + '</span></span></div>' +
+                        '</div>' +
+                        actionsHtml +
+                    '</div>';
+
+                container.appendChild(card);
+            });
+        });
+    }
+
+    // ========== CREATE ZOMBIE (Improvement #6 - User picks name, not hard-coded) ==========
+    document.getElementById('createZombieBtn').addEventListener('click', function() {
+        var name = document.getElementById('zombieNameInput').value.trim();
+        if (!name) {
+            setStatus("Please enter a zombie name!", "error");
+            return;
+        }
+        setStatus("Creating zombie '" + name + "'... please confirm in MetaMask.", "");
+        cryptoZombies.methods.createRandomZombie(name)
+            .send({ from: userAccount })
+            .on("receipt", function() {
+                setStatus("Successfully created " + name + "!", "success");
+                document.getElementById('zombieNameInput').value = '';
+                loadMyZombies();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    });
+
+    // ========== LEVEL UP ==========
+    function openLevelUp(zombieId) {
+        setStatus("Leveling up zombie #" + zombieId + "... costs 0.001 ETH.", "");
+        cryptoZombies.methods.levelUp(zombieId)
+            .send({ from: userAccount, value: web3.utils.toWei("0.001", "ether") })
+            .on("receipt", function() {
+                setStatus("Zombie #" + zombieId + " leveled up!", "success");
+                loadMyZombies();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    }
+
+    // ========== RENAME (Improvement #3 - More JS functionality) ==========
+    function openRename(zombieId) {
+        document.getElementById('renameZombieId').value = zombieId;
+        document.getElementById('newZombieName').value = '';
+        openModal('renameModal');
+    }
+
+    document.getElementById('confirmRenameBtn').addEventListener('click', function() {
+        var zombieId = document.getElementById('renameZombieId').value;
+        var newName = document.getElementById('newZombieName').value.trim();
+        if (!newName) { setStatus("Enter a new name!", "error"); return; }
+        closeModal('renameModal');
+        setStatus("Renaming zombie #" + zombieId + "...", "");
+        cryptoZombies.methods.changeName(zombieId, newName)
+            .send({ from: userAccount })
+            .on("receipt", function() {
+                setStatus("Zombie renamed to " + newName + "!", "success");
+                loadMyZombies();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    });
+
+    // ========== TRANSFER (Improvement #3 - More JS functionality) ==========
+    function openTransfer(zombieId) {
+        document.getElementById('transferZombieId').value = zombieId;
+        document.getElementById('transferToAddress').value = '';
+        openModal('transferModal');
+    }
+
+    document.getElementById('confirmTransferBtn').addEventListener('click', function() {
+        var zombieId = document.getElementById('transferZombieId').value;
+        var toAddress = document.getElementById('transferToAddress').value.trim();
+        if (!toAddress || !toAddress.startsWith('0x')) {
+            setStatus("Enter a valid address!", "error");
+            return;
+        }
+        closeModal('transferModal');
+        setStatus("Transferring zombie #" + zombieId + "...", "");
+        cryptoZombies.methods.transferFrom(userAccount, toAddress, zombieId)
+            .send({ from: userAccount })
+            .on("receipt", function() {
+                setStatus("Zombie #" + zombieId + " transferred!", "success");
+                loadMyZombies();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    });
+
+    // ========== FEED ON KITTY (Improvement #3 + #4 - Kitty contract) ==========
+    function openFeed(zombieId) {
+        document.getElementById('feedZombieId').value = zombieId;
+        document.getElementById('feedKittyId').value = '';
+        openModal('feedModal');
+    }
+
+    document.getElementById('confirmFeedBtn').addEventListener('click', function() {
+        var zombieId = document.getElementById('feedZombieId').value;
+        var kittyId = document.getElementById('feedKittyId').value;
+        if (kittyId === '') { setStatus("Enter a kitty ID!", "error"); return; }
+        closeModal('feedModal');
+        setStatus("Feeding zombie #" + zombieId + " on kitty #" + kittyId + "...", "");
+        cryptoZombies.methods.feedOnKitty(zombieId, kittyId)
+            .send({ from: userAccount })
+            .on("receipt", function() {
+                setStatus("Zombie ate the kitty and spawned a new zombie!", "success");
+                loadMyZombies();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    });
+
+    // ========== KITTY MANAGEMENT (Improvement #4) ==========
+    document.getElementById('createKittyBtn').addEventListener('click', function() {
+        var genes = Math.floor(Math.random() * 1e15);
+        setStatus("Creating kitty with genes " + genes + "...", "");
+        kittyContract.methods.createKitty(genes)
+            .send({ from: userAccount })
+            .on("receipt", function() {
+                setStatus("Kitty created!", "success");
+                loadKitties();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    });
+
+    function loadKitties() {
+        kittyContract.methods.totalKitties().call().then(function(total) {
+            var container = document.getElementById('kittyList');
+            container.innerHTML = '';
+            if (parseInt(total) === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No kitties yet</h3><p>Create one!</p></div>';
+                return;
+            }
+            for (var i = 0; i < parseInt(total); i++) {
+                (function(kittyId) {
+                    kittyContract.methods.getKitty(kittyId).call().then(function(kitty) {
+                        var card = document.createElement('div');
+                        card.className = 'kitty-card';
+                        card.innerHTML =
+                            '<div style="font-size:48px; margin-bottom:8px;">🐱</div>' +
+                            '<div class="kitty-id">Kitty #' + kittyId + '</div>' +
+                            '<div class="kitty-genes">Genes: ' + kitty.genes + '</div>';
+                        container.appendChild(card);
+                    });
+                })(i);
+            }
+        });
+    }
+
+    // ========== BATTLE SYSTEM (Improvement #3 - Attack functionality) ==========
+    document.getElementById('attackBtn').addEventListener('click', function() {
+        var attackerId = document.getElementById('attackerIdInput').value;
+        var targetId = document.getElementById('targetIdInput').value;
+        if (attackerId === '' || targetId === '') {
+            setStatus("Enter both zombie IDs!", "error");
+            return;
+        }
+        if (attackerId === targetId) {
+            setStatus("A zombie can't attack itself!", "error");
+            return;
+        }
+        setStatus("Zombie #" + attackerId + " is attacking zombie #" + targetId + "...", "");
+
+        cryptoZombies.methods.attack(attackerId, targetId)
+            .send({ from: userAccount })
+            .on("receipt", function(receipt) {
+                // Check for AttackResult event
+                var attackEvent = receipt.events.AttackResult;
+                if (attackEvent) {
+                    var won = attackEvent.returnValues.attackResult;
+                    var wins = attackEvent.returnValues.winCount;
+                    var losses = attackEvent.returnValues.lossCount;
+                    if (won) {
+                        document.getElementById('battleResult').innerHTML =
+                            '<h3 style="color:#00ff88; font-size:24px;">VICTORY!</h3>' +
+                            '<p style="color:#ccc;">Your zombie won! Wins: ' + wins + ' | Losses: ' + losses + '</p>' +
+                            '<p style="color:#888; margin-top:8px;">A new zombie was spawned from the defeated enemy\'s DNA!</p>';
+                        setStatus("Victory! Your zombie leveled up!", "success");
+                    } else {
+                        document.getElementById('battleResult').innerHTML =
+                            '<h3 style="color:#ff4757; font-size:24px;">DEFEAT</h3>' +
+                            '<p style="color:#ccc;">Your zombie lost. Wins: ' + wins + ' | Losses: ' + losses + '</p>' +
+                            '<p style="color:#888; margin-top:8px;">Your zombie needs to cool down before fighting again.</p>';
+                        setStatus("Defeat. Your zombie is cooling down.", "error");
+                    }
+                } else {
+                    setStatus("Battle complete!", "success");
+                }
+                loadMyZombies();
+            })
+            .on("error", function(error) {
+                setStatus("Error: " + (error.message || error), "error");
+            });
+    });
+
+    // ========== REFRESH BUTTONS ==========
+    document.getElementById('refreshAllBtn').addEventListener('click', loadAllZombies);
+
+    // ========== WEB3 INITIALIZATION ==========
+    window.addEventListener('load', async function() {
+        if (window.ethereum) {
+            window.web3 = new Web3(ethereum);
+            try {
+                var accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                userAccount = accounts[0];
+                startApp();
+            } catch (error) {
+                setStatus("Please connect MetaMask to use this DApp.", "error");
+            }
+        } else {
+            setStatus("MetaMask not detected. Please install MetaMask!", "error");
+            document.getElementById('accountInfo').textContent = 'MetaMask not detected';
+        }
+    });
+
+    if (window.ethereum) {
+        ethereum.on('accountsChanged', function() { window.location.reload(); });
+        ethereum.on('chainChanged', function() { window.location.reload(); });
+    }
+</script>
+</body>
+</html>
