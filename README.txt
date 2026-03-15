@@ -53,6 +53,11 @@ Tech Stack:
 - Vanilla HTML/CSS/JavaScript
 
 =============================================
+GitHub Repository:
+=============================================
+https://github.com/vraj00222/cryptozombie
+
+=============================================
 Setup Instructions:
 =============================================
 1. Start Ganache (Quickstart on port 7545)
@@ -61,5 +66,5 @@ Setup Instructions:
 4. Update contract-config.js with the deployed ZombieOwnership and CryptoKitties addresses from the migration output
 5. npx http-server -p 8080
 6. Open http://localhost:8080 in a browser with MetaMask
-7. Connect MetaMask to Ganache network (RPC URL: http://127.0.0.1:7545, Chain ID: 5777)
+7. Connect MetaMask to Ganache network (RPC URL: http://127.0.0.1:7545, Chain ID: 1337)
 8. Import a Ganache account into MetaMask using the private key
