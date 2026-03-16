@@ -1,5 +1,5 @@
 // Auto-generated after truffle migrate - update these after each deployment
 var CONTRACT_CONFIG = {
-    zombieOwnershipAddress: "0xe3a38BAe71c435864E2C711Aa838dd9f281920FC",
-    cryptoKittiesAddress: "0xbC24814cECD3861c92f297d5264cE045f784bC3d"
+    zombieOwnershipAddress: "0xfaa8542b14dBce7F7Fd3B7D9E29Cec2138a6CCB5",
+    cryptoKittiesAddress: "0xA3a95a97E0745844B4660190bffA703fE40dC0A3"
 };
