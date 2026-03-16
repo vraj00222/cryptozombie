@@ -163,7 +163,9 @@
 
 <script>
     var cryptoZombies;
+    var cryptoZombiesRead;
     var kittyContract;
+    var kittyContractRead;
     var userAccount;
 
     // ========== ZOMBIE IMAGE GENERATOR (Improvement #5) ==========
@@ -290,8 +292,12 @@
         var zombieAddress = CONTRACT_CONFIG.zombieOwnershipAddress;
         var kittyAddress = CONTRACT_CONFIG.cryptoKittiesAddress;
 
+        // MetaMask web3 for WRITE operations (signing transactions)
         cryptoZombies = new web3.eth.Contract(cryptoZombiesABI, zombieAddress);
         kittyContract = new web3.eth.Contract(cryptoKittiesABI, kittyAddress);
+        // Direct Ganache web3 for READ operations (bypasses MetaMask cache)
+        cryptoZombiesRead = new web3Read.eth.Contract(cryptoZombiesABI, zombieAddress);
+        kittyContractRead = new web3Read.eth.Contract(cryptoKittiesABI, kittyAddress);
 
         document.getElementById('accountInfo').textContent =
             'Connected: ' + userAccount.substring(0, 6) + '...' + userAccount.substring(38);
@@ -314,12 +320,12 @@
 
     // ========== ZOMBIE DISPLAY ==========
     function loadMyZombies() {
-        cryptoZombies.methods.getZombiesByOwner(userAccount).call()
+        cryptoZombiesRead.methods.getZombiesByOwner(userAccount).call()
             .then(function(ids) { displayZombies(ids, 'myZombies', true); });
     }
 
     function loadAllZombies() {
-        cryptoZombies.methods.getAllZombies().call()
+        cryptoZombiesRead.methods.getAllZombies().call()
             .then(function(ids) { displayZombies(ids, 'allZombies', false); });
     }
 
@@ -334,8 +340,8 @@
 
         var promises = ids.map(function(id) {
             return Promise.all([
-                cryptoZombies.methods.zombies(id).call(),
-                cryptoZombies.methods.zombieToOwner(id).call(),
+                cryptoZombiesRead.methods.zombies(id).call(),
+                cryptoZombiesRead.methods.zombieToOwner(id).call(),
                 Promise.resolve(id)
             ]);
         });
@@ -511,7 +517,7 @@
     });
 
     function loadKitties() {
-        kittyContract.methods.totalKitties().call().then(function(total) {
+        kittyContractRead.methods.totalKitties().call().then(function(total) {
             var container = document.getElementById('kittyList');
             container.innerHTML = '';
             if (parseInt(total) === 0) {
@@ -520,7 +526,7 @@
             }
             for (var i = 0; i < parseInt(total); i++) {
                 (function(kittyId) {
-                    kittyContract.methods.getKitty(kittyId).call().then(function(kitty) {
+                    kittyContractRead.methods.getKitty(kittyId).call().then(function(kitty) {
                         var card = document.createElement('div');
                         card.className = 'kitty-card';
                         card.innerHTML =
@@ -606,7 +612,9 @@
                     });
                 }
             }
+            // Use direct connection to Ganache for READ operations (avoids MetaMask cache bug)
             window.web3 = new Web3(ethereum);
+            window.web3Read = new Web3('http://127.0.0.1:7545');
             try {
                 var accounts = await ethereum.request({ method: 'eth_requestAccounts' });
                 userAccount = accounts[0];
